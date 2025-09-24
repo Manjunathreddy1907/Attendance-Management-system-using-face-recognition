@@ -7,3 +7,4 @@ pandas
 pillow
 pyttsx3
 streamlit
+twilio
