@@ -226,7 +226,7 @@ if choice == "🏫 Register Student":
             df.to_csv(STUDENT_DETAIL_PATH, index=False)
             st.success(f"✅ Registered {name} ({enrollment}) with phone and voice sample.")
         else:
-            st.warning("⚠️ Please enter all details and record/upload a voice sample.")
+            st.warning("⚠️ Please enter all details and upload a voice sample.")
 
 elif choice == "⚙️ Train Model":
     st.subheader("Train the Face Recognition Model")
