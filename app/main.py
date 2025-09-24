@@ -205,7 +205,7 @@ if choice == "🏫 Register Student":
     enrollment = st.text_input("Enrollment No")
     name = st.text_input("Student Name")
     phone = st.text_input("Parent Phone Number")
-    voice = st.audio("Record or upload student voice sample", format="audio/wav")
+    voice = st.file_uploader("Upload student voice sample (.wav)", type=["wav"])
 
     if st.button("📸 Capture Face & Register"):
         if enrollment and name and phone and voice is not None:
@@ -216,7 +216,7 @@ if choice == "🏫 Register Student":
             os.makedirs(voice_dir, exist_ok=True)
             voice_path = f"{voice_dir}/{enrollment}_{name}.wav"
             with open(voice_path, "wb") as f:
-                f.write(voice)
+                f.write(voice.read())
             # Update CSV
             if not os.path.exists(STUDENT_DETAIL_PATH):
                 df = pd.DataFrame(columns=["Enrollment", "Name", "Phone", "VoicePath"])
@@ -281,7 +281,8 @@ elif choice == "📊 View Attendance":
                 st.markdown(f"**Absent:** {total_students - len(present_ids)}")
                 st.markdown("**Absentees List:**")
                 if not absentees.empty:
-                    st.dataframe(absentees[["Enrollment", "Name", "Phone"]])
+                    display_cols = [col for col in ["Enrollment", "Name", "Phone"] if col in absentees.columns]
+                    st.dataframe(absentees[display_cols])
                 else:
                     st.info("No absentees!")
         else:
