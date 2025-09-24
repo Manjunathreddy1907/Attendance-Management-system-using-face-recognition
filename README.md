@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # Face based attendance system using python and openCV
 
@@ -36,3 +37,6 @@
 <img src='https://github.com/Patelrahul4884/Attendance-Management-system-using-face-recognition/blob/master/Project%20Snap/7.PNG'>
 
 ## Just follow me and Star⭐ my repository
+=======
+# Attendance-Management-system-using-face-recognition
+>>>>>>> b0555fe58b10f195f41fd9843d8faae5951585de
