@@ -1,3 +1,11 @@
+opencv-python
+pandas
+numpy
+Pillow
+streamlit
+twilio
+speechbrain
+speechbrain
 twilio
 streamlit
 opencv-python-headless

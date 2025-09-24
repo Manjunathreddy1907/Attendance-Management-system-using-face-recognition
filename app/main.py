@@ -29,12 +29,19 @@ def capture_face(enrollment, name):
     face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
     sample_count = 0
 
+
     while True:
         ret, img = cam.read()
         if not ret:
             break
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        # Draw camera cut-out (central circle)
+        h_img, w_img = img.shape[:2]
+        center = (w_img // 2, h_img // 2)
+        radius = min(w_img, h_img) // 4
+        cv2.circle(img, center, radius, (0,255,255), 2)
 
         for (x, y, w, h) in faces:
             sample_count += 1
@@ -102,6 +109,11 @@ def take_attendance(subject):
                     name = matched["Name"].values[0]
                 else:
                     name = f"Unknown_{id}"
+                # If there are twins or confidence is low, prompt for voice verification (placeholder)
+                if conf > 50:  # Lower confidence, possible ambiguity
+                    # Placeholder: In a real app, prompt for voice and compare with registered sample
+                    print(f"[VOICE VERIFICATION NEEDED] for {name} (ID: {id}) - confidence: {conf}")
+                    # You can add Streamlit audio input and compare here
                 now = datetime.datetime.now()
                 attendance.loc[len(attendance)] = [id, name, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")]
                 cv2.putText(img, f"{name}-{id}", (x,y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
