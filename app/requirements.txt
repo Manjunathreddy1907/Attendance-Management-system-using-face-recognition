@@ -1,3 +1,4 @@
+twilio
 streamlit
 opencv-python-headless
 face-recognition

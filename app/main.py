@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import numpy as np
 import datetime
+from twilio.rest import Client
 from PIL import Image
 
 # ------------------------------
@@ -50,12 +51,14 @@ def capture_face(enrollment, name):
     cv2.destroyAllWindows()
 
     if not os.path.exists(STUDENT_DETAIL_PATH):
-        df = pd.DataFrame(columns=["Enrollment", "Name"])
+        df = pd.DataFrame(columns=["Enrollment", "Name", "Phone", "VoicePath"])
         df.to_csv(STUDENT_DETAIL_PATH, index=False)
 
     df = pd.read_csv(STUDENT_DETAIL_PATH)
-    df.loc[len(df)] = [enrollment, name]
-    df.to_csv(STUDENT_DETAIL_PATH, index=False)
+    # Phone and VoicePath will be added in the registration UI logic
+    # This function only handles face capture
+    # The actual row will be added after all data is collected
+    pass
 
 
 def train_model():
@@ -116,10 +119,35 @@ def take_attendance(subject):
     cam.release()
     cv2.destroyAllWindows()
 
+
     os.makedirs(f"{ATTENDANCE_PATH}/{subject}", exist_ok=True)
     filename = f"{ATTENDANCE_PATH}/{subject}/{subject}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     attendance.drop_duplicates(subset=["Enrollment"], inplace=True)
     attendance.to_csv(filename, index=False)
+
+    # --- SMS Notification for Absentees ---
+    # Twilio setup (replace with your credentials)
+    TWILIO_ACCOUNT_SID = "your_account_sid"
+    TWILIO_AUTH_TOKEN = "your_auth_token"
+    TWILIO_PHONE = "+1234567890"  # Your Twilio phone number
+    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    # Load all registered students
+    df_students = pd.read_csv(STUDENT_DETAIL_PATH)
+    present_ids = set(attendance["Enrollment"].astype(str))
+    for idx, row in df_students.iterrows():
+        if str(row["Enrollment"]) not in present_ids:
+            phone = str(row["Phone"])
+            name = row["Name"]
+            message = f"Your ward {name} is absent for the class. Please contact your ward for a reason."
+            try:
+                client.messages.create(
+                    body=message,
+                    from_=TWILIO_PHONE,
+                    to=phone
+                )
+            except Exception as e:
+                print(f"Failed to send SMS to {phone}: {e}")
+
     return filename
 
 
@@ -156,6 +184,7 @@ st.markdown("### Welcome to the Automated Attendance System")
 menu = ["🏫 Register Student", "⚙️ Train Model", "📝 Take Attendance", "👨‍🎓 View Students", "📊 View Attendance"]
 choice = st.sidebar.radio("Menu", menu)
 
+
 # ------------------------------
 # MENU FUNCTIONS
 # ------------------------------
@@ -163,13 +192,29 @@ if choice == "🏫 Register Student":
     st.subheader("Register a New Student")
     enrollment = st.text_input("Enrollment No")
     name = st.text_input("Student Name")
+    phone = st.text_input("Parent Phone Number")
+    voice = st.audio("Record or upload student voice sample", format="audio/wav")
 
-    if st.button("📸 Capture Face"):
-        if enrollment and name:
+    if st.button("📸 Capture Face & Register"):
+        if enrollment and name and phone and voice is not None:
+            # Save face images
             capture_face(enrollment, name)
-            st.success(f"✅ Face registered for {name} ({enrollment})")
+            # Save voice sample
+            voice_dir = "StudentDetails/voices"
+            os.makedirs(voice_dir, exist_ok=True)
+            voice_path = f"{voice_dir}/{enrollment}_{name}.wav"
+            with open(voice_path, "wb") as f:
+                f.write(voice)
+            # Update CSV
+            if not os.path.exists(STUDENT_DETAIL_PATH):
+                df = pd.DataFrame(columns=["Enrollment", "Name", "Phone", "VoicePath"])
+                df.to_csv(STUDENT_DETAIL_PATH, index=False)
+            df = pd.read_csv(STUDENT_DETAIL_PATH)
+            df.loc[len(df)] = [enrollment, name, phone, voice_path]
+            df.to_csv(STUDENT_DETAIL_PATH, index=False)
+            st.success(f"✅ Registered {name} ({enrollment}) with phone and voice sample.")
         else:
-            st.warning("⚠️ Please enter Enrollment No and Name.")
+            st.warning("⚠️ Please enter all details and record/upload a voice sample.")
 
 elif choice == "⚙️ Train Model":
     st.subheader("Train the Face Recognition Model")
