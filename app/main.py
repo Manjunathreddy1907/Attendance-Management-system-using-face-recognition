@@ -255,8 +255,23 @@ elif choice == "📊 View Attendance":
         selected_file = st.selectbox("Select Attendance File", attendance_files)
         if selected_file:
             file_path = os.path.join(ATTENDANCE_PATH, selected_subject, selected_file)
-            df = pd.read_csv(file_path)
-            st.dataframe(df)
+            df_attendance = pd.read_csv(file_path)
+            st.dataframe(df_attendance)
+            # Show summary stats and absentees
+            if os.path.exists(STUDENT_DETAIL_PATH):
+                df_students = pd.read_csv(STUDENT_DETAIL_PATH)
+                total_students = len(df_students)
+                present_ids = set(df_attendance["Enrollment"].astype(str))
+                all_ids = set(df_students["Enrollment"].astype(str))
+                absentees = df_students[~df_students["Enrollment"].astype(str).isin(present_ids)]
+                st.markdown(f"**Total Students:** {total_students}")
+                st.markdown(f"**Present:** {len(present_ids)}")
+                st.markdown(f"**Absent:** {total_students - len(present_ids)}")
+                st.markdown("**Absentees List:**")
+                if not absentees.empty:
+                    st.dataframe(absentees[["Enrollment", "Name", "Phone"]])
+                else:
+                    st.info("No absentees!")
         else:
             st.info("No attendance files found for this subject.")
     else:
