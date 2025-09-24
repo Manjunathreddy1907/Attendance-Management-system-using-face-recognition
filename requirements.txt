@@ -1,3 +1,4 @@
+streamlit
 numpy
 opencv-contrib-python
 opencv-python
@@ -5,3 +6,4 @@ openpyxl
 pandas
 pillow
 pyttsx3
+streamlit
