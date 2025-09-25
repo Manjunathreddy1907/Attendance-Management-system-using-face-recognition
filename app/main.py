@@ -34,11 +34,16 @@ def capture_face(enrollment, name):
         if not ret:
             break
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # Always draw the circle overlay, even if no face detected
         h_img, w_img = img.shape[:2]
+        # Draw camera-like overlay: rectangle border and central circle
+        border_color = (0, 255, 255)
+        thickness = 3
+        # Rectangle border (like camera preview)
+        cv2.rectangle(img, (10, 10), (w_img-10, h_img-10), border_color, thickness)
+        # Central circle (for face alignment)
         center = (w_img // 2, h_img // 2)
         radius = min(w_img, h_img) // 4
-        cv2.circle(img, center, radius, (0,255,255), 2)
+        cv2.circle(img, center, radius, border_color, 2)
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
             sample_count += 1
@@ -88,14 +93,12 @@ def take_attendance(subject):
     cam = cv2.VideoCapture(0)
     attendance = pd.DataFrame(columns=["Enrollment", "Name", "Date", "Time"])
     future = datetime.datetime.now() + datetime.timedelta(seconds=20)
-
     while True:
         ret, img = cam.read()
         if not ret:
             break
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.2, 5)
-
         for (x, y, w, h) in faces:
             id, conf = recognizer.predict(gray[y:y+h, x:x+w])
             if conf < 70:
@@ -106,9 +109,7 @@ def take_attendance(subject):
                     name = f"Unknown_{id}"
                 # If there are twins or confidence is low, prompt for voice verification (placeholder)
                 if conf > 50:  # Lower confidence, possible ambiguity
-                    # Placeholder: In a real app, prompt for voice and compare with registered sample
                     print(f"[VOICE VERIFICATION NEEDED] for {name} (ID: {id}) - confidence: {conf}")
-                    # You can add Streamlit audio input and compare here
                 now = datetime.datetime.now()
                 attendance.loc[len(attendance)] = [id, name, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S")]
                 cv2.putText(img, f"{name}-{id}", (x,y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
@@ -116,33 +117,27 @@ def take_attendance(subject):
             else:
                 cv2.putText(img, "Unknown", (x,y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                 cv2.rectangle(img, (x,y), (x+w,y+h), (0,0,255), 2)
-
         cv2.imshow("Attendance", img)
         if datetime.datetime.now() > future:
             break
         if cv2.waitKey(30) & 0xFF == 27:
             break
-
     cam.release()
     cv2.destroyAllWindows()
-
-
     os.makedirs(f"{ATTENDANCE_PATH}/{subject}", exist_ok=True)
     filename = f"{ATTENDANCE_PATH}/{subject}/{subject}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     attendance.drop_duplicates(subset=["Enrollment"], inplace=True)
     attendance.to_csv(filename, index=False)
-
     # --- SMS Notification for Absentees ---
-    # Twilio setup (replace with your credentials)
     TWILIO_ACCOUNT_SID = "your_account_sid"
     TWILIO_AUTH_TOKEN = "your_auth_token"
     TWILIO_PHONE = "+1234567890"  # Your Twilio phone number
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    # Load all registered students
     df_students = pd.read_csv(STUDENT_DETAIL_PATH)
     present_ids = set(attendance["Enrollment"].astype(str))
     for idx, row in df_students.iterrows():
-        if str(row["Enrollment"]) not in present_ids:
+        # Always check phone is present and not empty
+        if str(row["Enrollment"]) not in present_ids and str(row["Phone"]).strip():
             phone = str(row["Phone"])
             name = row["Name"]
             message = f"Your ward {name} is absent for the class. Please contact your ward for a reason."
@@ -154,7 +149,6 @@ def take_attendance(subject):
                 )
             except Exception as e:
                 print(f"Failed to send SMS to {phone}: {e}")
-
     return filename
 
 
