@@ -80,7 +80,9 @@ def train_model():
             id = int(parts[1])
             faces.append(gray_img)
             ids.append(id)
-
+    if len(faces) < 2:
+        st.error("You need at least two face samples to train the model. Please register more students or capture more images.")
+        return
     recognizer.train(faces, np.array(ids))
     recognizer.save(TRAINING_LABEL_PATH)
 
