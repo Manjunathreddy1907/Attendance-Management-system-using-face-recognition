@@ -86,6 +86,9 @@ def train_model():
 
 
 def take_attendance(subject):
+    if not os.path.exists(TRAINING_LABEL_PATH):
+        st.error("Model not trained! Please train the model before taking attendance.")
+        return None
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read(TRAINING_LABEL_PATH)
     face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
