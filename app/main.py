@@ -26,40 +26,57 @@ os.makedirs(ATTENDANCE_PATH, exist_ok=True)
 # ------------------------------
 def capture_face(enrollment, name):
     os.makedirs(TRAINING_IMAGE_PATH, exist_ok=True)
-    cam = cv2.VideoCapture(0)
-    face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
-    sample_count = 0
-    while True:
-        ret, img = cam.read()
-        if not ret:
-            break
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        h_img, w_img = img.shape[:2]
-        # Draw camera-like overlay: rectangle border and central circle
-        border_color = (0, 255, 255)
-        thickness = 3
-        # Rectangle border (like camera preview)
-        cv2.rectangle(img, (10, 10), (w_img-10, h_img-10), border_color, thickness)
-        # Central circle (for face alignment)
-        center = (w_img // 2, h_img // 2)
-        radius = min(w_img, h_img) // 4
-        cv2.circle(img, center, radius, border_color, 2)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-        for (x, y, w, h) in faces:
-            sample_count += 1
-            cv2.imwrite(f"{TRAINING_IMAGE_PATH}/{name}.{enrollment}.{sample_count}.jpg", gray[y:y+h, x:x+w])
-            cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 2)
-        cv2.imshow("Capturing Faces", img)
-        if cv2.waitKey(100) & 0xFF == 27:  # ESC
-            break
-        elif sample_count >= 20:
-            break
-    cam.release()
-    cv2.destroyAllWindows()
+    try:
+        cam = cv2.VideoCapture(0)
+        if not cam.isOpened():
+            raise Exception("Camera not available")
+        face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
+        sample_count = 0
+        while True:
+            ret, img = cam.read()
+            if not ret:
+                break
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            h_img, w_img = img.shape[:2]
+            border_color = (0, 255, 255)
+            thickness = 3
+            cv2.rectangle(img, (10, 10), (w_img-10, h_img-10), border_color, thickness)
+            center = (w_img // 2, h_img // 2)
+            radius = min(w_img, h_img) // 4
+            cv2.circle(img, center, radius, border_color, 2)
+            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            for (x, y, w, h) in faces:
+                sample_count += 1
+                cv2.imwrite(f"{TRAINING_IMAGE_PATH}/{name}.{enrollment}.{sample_count}.jpg", gray[y:y+h, x:x+w])
+                cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 2)
+            cv2.imshow("Capturing Faces", img)
+            if cv2.waitKey(100) & 0xFF == 27:  # ESC
+                break
+            elif sample_count >= 20:
+                break
+        cam.release()
+        cv2.destroyAllWindows()
+    except Exception as e:
+        # Fallback: ask for image upload in Streamlit
+        st.warning("Camera not available. Please upload a face image.")
+        uploaded_file = st.file_uploader("Upload a face image (.jpg, .png)", type=["jpg", "jpeg", "png"])
+        if uploaded_file is not None:
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
+            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            sample_count = 0
+            for (x, y, w, h) in faces:
+                sample_count += 1
+                cv2.imwrite(f"{TRAINING_IMAGE_PATH}/{name}.{enrollment}.{sample_count}.jpg", gray[y:y+h, x:x+w])
+            if sample_count > 0:
+                st.success(f"{sample_count} face(s) saved from uploaded image.")
+            else:
+                st.error("No face detected in uploaded image.")
     if not os.path.exists(STUDENT_DETAIL_PATH):
         df = pd.DataFrame(columns=["Enrollment", "Name", "Phone", "VoicePath"])
         df.to_csv(STUDENT_DETAIL_PATH, index=False)
-    # The actual row will be added after all data is collected in registration UI
     pass
 
 
