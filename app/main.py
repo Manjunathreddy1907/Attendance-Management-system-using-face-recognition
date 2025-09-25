@@ -25,54 +25,44 @@ os.makedirs(ATTENDANCE_PATH, exist_ok=True)
 # HELPER FUNCTIONS
 # ------------------------------
 def capture_face(enrollment, name):
+    os.makedirs(TRAINING_IMAGE_PATH, exist_ok=True)
     cam = cv2.VideoCapture(0)
     face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
     sample_count = 0
-
-
     while True:
         ret, img = cam.read()
         if not ret:
             break
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-        # Draw camera cut-out (central circle)
+        # Always draw the circle overlay, even if no face detected
         h_img, w_img = img.shape[:2]
         center = (w_img // 2, h_img // 2)
         radius = min(w_img, h_img) // 4
         cv2.circle(img, center, radius, (0,255,255), 2)
-
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
             sample_count += 1
             cv2.imwrite(f"{TRAINING_IMAGE_PATH}/{name}.{enrollment}.{sample_count}.jpg", gray[y:y+h, x:x+w])
             cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 2)
-
         cv2.imshow("Capturing Faces", img)
         if cv2.waitKey(100) & 0xFF == 27:  # ESC
             break
         elif sample_count >= 20:
             break
-
     cam.release()
     cv2.destroyAllWindows()
-
     if not os.path.exists(STUDENT_DETAIL_PATH):
         df = pd.DataFrame(columns=["Enrollment", "Name", "Phone", "VoicePath"])
         df.to_csv(STUDENT_DETAIL_PATH, index=False)
-
-    df = pd.read_csv(STUDENT_DETAIL_PATH)
-    # Phone and VoicePath will be added in the registration UI logic
-    # This function only handles face capture
-    # The actual row will be added after all data is collected
+    # The actual row will be added after all data is collected in registration UI
     pass
 
 
 def train_model():
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     faces, ids = [], []
+    os.makedirs(TRAINING_IMAGE_PATH, exist_ok=True)
     image_paths = [os.path.join(TRAINING_IMAGE_PATH, f) for f in os.listdir(TRAINING_IMAGE_PATH)]
-    
     for image_path in image_paths:
         gray_img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         parts = os.path.split(image_path)[-1].split(".")
@@ -80,8 +70,8 @@ def train_model():
             id = int(parts[1])
             faces.append(gray_img)
             ids.append(id)
-    if len(faces) < 2:
-        st.error("You need at least two face samples to train the model. Please register more students or capture more images.")
+    if len(faces) < 1:
+        st.error("You need at least one face sample to train the model. Please register a student and capture an image.")
         return
     recognizer.train(faces, np.array(ids))
     recognizer.save(TRAINING_LABEL_PATH)
