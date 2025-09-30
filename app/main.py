@@ -211,7 +211,7 @@ if choice == "🏫 Register Student":
     enrollment = st.text_input("Enrollment No")
     name = st.text_input("Student Name")
     phone = st.text_input("Parent Phone Number")
-    voice = st.file_uploader("Upload student voice sample (.wav)", type=["wav"])
+    voice = st.file_uploader("Upload student voice sample (any audio format)")
 
     if st.button("📸 Capture Face & Register"):
         if enrollment and name and phone and voice is not None:
@@ -247,6 +247,28 @@ elif choice == "📝 Take Attendance":
         if subject:
             file = take_attendance(subject)
             st.success(f"✅ Attendance saved: {file}")
+            # Manual attendance option after posting attendance
+            st.markdown("---")
+            st.subheader("Manual Attendance (Latecomers)")
+            df_students = pd.read_csv(STUDENT_DETAIL_PATH)
+            df_attendance = pd.read_csv(file)
+            present_ids = set(df_attendance["Enrollment"].astype(str))
+            absent_students = df_students[~df_students["Enrollment"].astype(str).isin(present_ids)]
+            manual_enrollment = st.selectbox("Select student to mark present:", absent_students["Enrollment"] if not absent_students.empty else [])
+            if st.button("Mark Present (Manual)") and manual_enrollment:
+                manual_row = df_students[df_students["Enrollment"] == manual_enrollment]
+                if not manual_row.empty:
+                    now = datetime.datetime.now()
+                    new_row = {
+                        "Enrollment": manual_row["Enrollment"].values[0],
+                        "Name": manual_row["Name"].values[0],
+                        "Date": now.strftime("%Y-%m-%d"),
+                        "Time": now.strftime("%H:%M:%S")
+                    }
+                    df_attendance = pd.concat([df_attendance, pd.DataFrame([new_row])], ignore_index=True)
+                    df_attendance.drop_duplicates(subset=["Enrollment"], inplace=True)
+                    df_attendance.to_csv(file, index=False)
+                    st.success(f"Manual attendance marked for {manual_row['Name'].values[0]} ({manual_enrollment})!")
         else:
             st.warning("⚠️ Please enter a subject name.")
 
