@@ -97,6 +97,7 @@ def train_model():
         return
     recognizer.train(faces, np.array(ids))
     recognizer.save(TRAINING_LABEL_PATH)
+    st.success("Image trained successfully!")
 
 
 def take_attendance(subject):
@@ -238,7 +239,6 @@ elif choice == "⚙️ Train Model":
     st.subheader("Train the Face Recognition Model")
     if st.button("🧠 Train Model"):
         train_model()
-        st.success("✅ Model trained successfully!")
 
 elif choice == "📝 Take Attendance":
     st.subheader("Take Attendance")
@@ -269,6 +269,33 @@ elif choice == "📝 Take Attendance":
                     df_attendance.drop_duplicates(subset=["Enrollment"], inplace=True)
                     df_attendance.to_csv(file, index=False)
                     st.success(f"Manual attendance marked for {manual_row['Name'].values[0]} ({manual_enrollment})!")
+            # Option to update today's attendance
+            st.markdown("---")
+            st.subheader("Update Today's Attendance")
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            today_attendance = df_attendance[df_attendance["Date"] == today]
+            st.dataframe(today_attendance)
+            update_enrollment = st.selectbox("Select student to update attendance:", df_students["Enrollment"])
+            update_action = st.radio("Update action:", ["Mark Present", "Mark Absent"])
+            if st.button("Update Attendance") and update_enrollment:
+                if update_action == "Mark Present":
+                    manual_row = df_students[df_students["Enrollment"] == update_enrollment]
+                    if not manual_row.empty:
+                        now = datetime.datetime.now()
+                        new_row = {
+                            "Enrollment": manual_row["Enrollment"].values[0],
+                            "Name": manual_row["Name"].values[0],
+                            "Date": now.strftime("%Y-%m-%d"),
+                            "Time": now.strftime("%H:%M:%S")
+                        }
+                        df_attendance = pd.concat([df_attendance, pd.DataFrame([new_row])], ignore_index=True)
+                        df_attendance.drop_duplicates(subset=["Enrollment"], inplace=True)
+                        df_attendance.to_csv(file, index=False)
+                        st.success(f"Attendance updated: {manual_row['Name'].values[0]} marked present.")
+                elif update_action == "Mark Absent":
+                    df_attendance = df_attendance[df_attendance["Enrollment"] != update_enrollment]
+                    df_attendance.to_csv(file, index=False)
+                    st.success(f"Attendance updated: {update_enrollment} marked absent.")
         else:
             st.warning("⚠️ Please enter a subject name.")
 
